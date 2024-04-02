@@ -3,7 +3,7 @@ import React from "react";
 const Update = () => {
     return(
         <div>
-            Update
+            Update 1
         </div>
     );
 
