@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes, Link, useParams } from 'react-router-dom';
 import { Container, Grid, Paper, Typography, Select, MenuItem, List, ListItem, ListItemText, Button } from '@mui/material';
+import { read, utils } from 'xlsx'; 
 
 function SubjectDetail() {
   const [students, setStudents] = useState([]);
@@ -25,6 +26,16 @@ function SubjectDetail() {
     }
   };
 
+  const handleEdit = (studentId) => {
+    // Xử lý sự kiện edit sinh viên với id là studentId
+    console.log('Edit student:', studentId);
+  };
+
+  const handleDelete = (studentId) => {
+    // Xử lý sự kiện xóa sinh viên với id là studentId
+    console.log('Delete student:', studentId);
+  }; 
+  
   if (students.length === 0) {
     return <Typography variant="h5" align="center">Không tìm thấy dữ liệu cho môn học này.</Typography>;
   }
@@ -36,6 +47,8 @@ function SubjectDetail() {
         {students.map(student => (
           <ListItem key={student.mssv}>
             <ListItemText primary={student.name} secondary={`MSSV: ${student.mssv}`} />
+            <Button onClick={() => handleEdit(student.mssv)}>Edit</Button>
+            <Button onClick={() => handleDelete(student.mssv)}>Delete</Button>
           </ListItem>
         ))}
       </List>
@@ -69,43 +82,45 @@ function App() {
 
     // Xử lý sự kiện khi người dùng chọn file
     fileInput.onchange = async (event) => {
-        const file = event.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const sheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[sheetName];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const data = new Uint8Array(e.target.result);
+          const workbook = read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = utils.sheet_to_json(worksheet);
 
-                // Gửi dữ liệu JSON qua API
-                try {
-                    const response = await fetch('https://xdwebserver.onrender.com/themsinhvien', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(jsonData)
-                    });
-                    if (response.ok) {
-                        console.log('Dữ liệu đã được gửi thành công.');
-                    } else {
-                        console.error('Có lỗi xảy ra khi gửi dữ liệu.');
-                    }
-                } catch (error) {
-                    console.error('Đã có lỗi xảy ra:', error);
-                }
-            };
-            reader.readAsArrayBuffer(file);
-        } else {
-            alert('Không có file được chọn.');
-        }
+          // Gửi dữ liệu JSON qua API
+          try {
+            const response = await fetch('https://xdwebserver.onrender.com/sinhvien', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(jsonData)
+            });
+            if (response.ok) {
+              console.log('Dữ liệu đã được gửi thành công.');
+            } else {
+              console.error('Có lỗi xảy ra khi gửi dữ liệu.');
+            }
+          } catch (error) {
+            console.error('Đã có lỗi xảy ra:', error);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        alert('Không có file được chọn.');
+      }
     };
-    // Kích hoạt sự kiện chọn file
+
+
+    // Mô phỏng sự kiện click vào thẻ input
     fileInput.click();
-};
-  
+  };
+
   return (
     <Router>
       <Container maxWidth="lg" style={{ marginTop: 20 }}>
