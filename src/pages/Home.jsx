@@ -1,181 +1,163 @@
-
-import { Container, Card, Form, Button, Navbar, Nav } from 'react-bootstrap';
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { createRoot } from 'react-dom';
-import bootstrapCSS from 'bootstrap/dist/css/bootstrap.min.css';
+import { BrowserRouter as Router, Route, Routes, Link, useParams } from 'react-router-dom';
+import { Container, Grid, Paper, Typography, Select, MenuItem, List, ListItem, ListItemText, Button } from '@mui/material';
+import { read, utils } from 'xlsx'; 
 
-
-const Home = () => {
-    const [sinhViens, setSinhViens] = useState([]);
-  const [newSV, setNewSV] = useState({ mssv: '', name: '', grade: '', time: '', day: '' });
-  const [editingSV, setEditingSV] = useState(null);
+function SubjectDetail() {
+  const [students, setStudents] = useState([]);
+  const { subjectId } = useParams();
 
   useEffect(() => {
-    fetchSinhViens();
+    if (subjectId) {
+      fetchData(subjectId);
+    }
+  }, [subjectId]);
+
+  const fetchData = async (subjectId) => {
+    try {
+      const response = await fetch(`https://xdwebserver.onrender.com/sinhvien/subject/${subjectId}`);
+      if (!response.ok) {
+        throw new Error('Không thể tải dữ liệu từ URL.');
+      }
+      const data = await response.json();
+      setStudents(data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleEdit = (studentId) => {
+    // Xử lý sự kiện edit sinh viên với id là studentId
+    console.log('Edit student:', studentId);
+  };
+
+  const handleDelete = (studentId) => {
+    // Xử lý sự kiện xóa sinh viên với id là studentId
+    console.log('Delete student:', studentId);
+  }; 
+  
+  if (students.length === 0) {
+    return <Typography variant="h5" align="center">Không tìm thấy dữ liệu cho môn học này.</Typography>;
+  }
+
+  return (
+    <div>
+      <Typography variant="h5" align="center">Danh sách sinh viên </Typography>
+      <List>
+        {students.map(student => (
+          <ListItem key={student.mssv}>
+            <ListItemText primary={student.name} secondary={`MSSV: ${student.mssv}`} />
+            <Button onClick={() => handleEdit(student.mssv)}>Edit</Button>
+            <Button onClick={() => handleDelete(student.mssv)}>Delete</Button>
+          </ListItem>
+        ))}
+      </List>
+    </div>
+  );
+}
+
+function App() {
+  const [subjectsData, setSubjectsData] = useState([]);
+
+  useEffect(() => {
+    fetchData();
   }, []);
 
-  const fetchSinhViens = async () => {
+  const fetchData = async () => {
     try {
-      const response = await axios.get('http://localhost:4000/sinhvien/');
-      setSinhViens(response.data);
+      const response = await fetch('https://xdwebserver.onrender.com/subject');
+      if (!response.ok) {
+        throw new Error('Không thể tải dữ liệu từ URL.');
+      }
+      const data = await response.json();
+      setSubjectsData(data);
     } catch (error) {
-      console.error('Error fetching sinh viens:', error);
+      console.error(error);
     }
   };
 
-  const handleChange = (e, index) => {
-    const { name, value } = e.target;
-    const updatedSinhViens = [...sinhViens];
-    updatedSinhViens[index][name] = value;
-    setSinhViens(updatedSinhViens);
+  const handleUpload = () => {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+
+    // Xử lý sự kiện khi người dùng chọn file
+    fileInput.onchange = async (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const data = new Uint8Array(e.target.result);
+          const workbook = read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = utils.sheet_to_json(worksheet);
+
+          // Gửi dữ liệu JSON qua API
+          try {
+            const response = await fetch('https://xdwebserver.onrender.com/sinhvien', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(jsonData)
+            });
+            if (response.ok) {
+              console.log('Dữ liệu đã được gửi thành công.');
+            } else {
+              console.error('Có lỗi xảy ra khi gửi dữ liệu.');
+            }
+          } catch (error) {
+            console.error('Đã có lỗi xảy ra:', error);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        alert('Không có file được chọn.');
+      }
+    };
+
+
+    // Mô phỏng sự kiện click vào thẻ input
+    fileInput.click();
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-        await axios.post('http://localhost:4000/sinhvien/', newSV);
-        setNewSV({ mssv: '', name: '', grade: '', time: '', day: '' },() => {
-            fetchSinhViens();
-        });
-      console.log(newSV)
-      fetchSinhViens(); 
-    } catch (error) {
-      console.error('Error creating sinh vien:', error);
-    }
-  };
-
-  const handleEdit = async (sv) => {
-    setEditingSV(sv);
-  };
-
-  const handleSaveEdit = async () => {
-    try {
-      await axios.put(`http://localhost:4000/sinhvien/${editingSV.mssv}`, editingSV);
-      fetchSinhViens();
-      console.log(editingSV.mssv)
-    } catch (error) {
-      console.error('Error updating sinh vien:', error);
-    }
-  };
-  const handleRemove = async (mssv) => {
-    try {
-      await axios.delete(`http://localhost:4000/sinhvien/${mssv}`);
-      fetchSinhViens();
-      console.log(mssv)
-    } catch (error) {
-      console.error('Error updating sinh vien:', error);
-    }
-  };
-  
-
-    return(
-        <>
-<Navbar bg="light" expand="lg">
-  <Container>
-    <Navbar.Brand href="#home">Đăng nhập</Navbar.Brand>
-    <Navbar.Toggle aria-controls="basic-navbar-nav" />
-    <Navbar.Collapse id="basic-navbar-nav">
-      <Nav className="ml-auto">
-        <Button variant="primary">Đăng nhập</Button>
-      </Nav>
-    </Navbar.Collapse>
-  </Container>
-</Navbar>
-      <Container className="mt-5">
-        <h1>Quản lí điểm danh sinh viên</h1>
-        <div className="list-group">
-          {sinhViens.map((sv, index) => (
-            <div key={index} className="list-group-item mb-3">
-              <Card>
-                <Card.Body>
-                <Card.Title>Sinh viên {index + 1} - ID: {sv.mssv}</Card.Title>
-                  <Form>
-                    <Form.Group>
-                      <Form.Label>MSSV:</Form.Label>
-                      <Form.Control type="text" name="mssv" value={sv.mssv} onChange={(e) => handleChange(e, index)} />
-                    </Form.Group>
-                    <Form.Group>
-                      <Form.Label>Tên:</Form.Label>
-                      <Form.Control type="text" name="name" value={sv.name} onChange={(e) => handleChange(e, index)} />
-                    </Form.Group>
-                    <Form.Group>
-                      <Form.Label>Điểm:</Form.Label>
-                      <Form.Control type="text" name="grade" value={sv.grade} onChange={(e) => handleChange(e, index)} />
-                    </Form.Group>
-                    <Form.Group>
-                      <Form.Label>Thời gian:</Form.Label>
-                      <Form.Control type="text" name="time" value={sv.time} onChange={(e) => handleChange(e, index)} />
-                    </Form.Group>
-                    <Form.Group>
-                      <Form.Label>Ngày:</Form.Label>
-                      <Form.Control type="text" name="day" value={sv.day} onChange={(e) => handleChange(e, index)} />
-                    </Form.Group>
-                    <Button variant="primary" onClick={() => handleEdit(sv)}>Chỉnh sửa</Button>
-                    <Button variant="primary" onClick={() => handleRemove(sv.mssv)}>Xóa</Button>
-                  </Form>
-                </Card.Body>
-              </Card>
-            </div>
-          ))}
-        </div>
-        {editingSV && (
-          <div className="mt-3">
-            <h2>Chỉnh sửa sinh viên</h2>
-            <Form onSubmit={handleSaveEdit}>
-              <Form.Group>
-                <Form.Label>MSSV:</Form.Label>
-                <Form.Control type="text" name="mssv" value={editingSV.mssv} onChange={(e) => setEditingSV({...editingSV, mssv: e.target.value})} />
-              </Form.Group>
-              <Form.Group>
-                <Form.Label>Tên:</Form.Label>
-                <Form.Control type="text" name="name" value={editingSV.name} onChange={(e) => setEditingSV({...editingSV, name: e.target.value})} />
-              </Form.Group>
-              <Form.Group>
-                <Form.Label>Điểm:</Form.Label>
-                <Form.Control type="text" name="grade" value={editingSV.grade} onChange={(e) => setEditingSV({...editingSV, grade: e.target.value})} />
-              </Form.Group>
-              <Form.Group>
-                <Form.Label>Thời gian:</Form.Label>
-                <Form.Control type="text" name="time" value={editingSV.time} onChange={(e) => setEditingSV({...editingSV, time: e.target.value})} />
-              </Form.Group>
-              <Form.Group>
-                <Form.Label>Ngày:</Form.Label>
-                <Form.Control type="text" name="day" value={editingSV.day} onChange={(e) => setEditingSV({...editingSV, day: e.target.value})} />
-              </Form.Group>
-              <Button type="submit" variant="primary">Lưu chỉnh sửa</Button>
-            </Form>
-          </div>
-        )}   
-        <div className="mt-3">
-          <h2>Thêm sinh viên mới</h2>
-          <Form onSubmit={handleSubmit}>
-            <Form.Group>
-              <Form.Label>MSSV:</Form.Label>
-            <Form.Control type="text" name="mssv" placeholder="MSSV" value={newSV.mssv} onChange={(e) => setNewSV({...newSV, mssv: e.target.value})} required />
-          </Form.Group>
-          <Form.Group>
-            <Form.Label>Tên:</Form.Label>
-            <Form.Control type="text" name="name" placeholder="Tên" value={newSV.name} onChange={(e) => setNewSV({...newSV, name: e.target.value})} required />
-          </Form.Group>
-          <Form.Group>
-            <Form.Label>Điểm:</Form.Label>
-            <Form.Control type="text" name="grade" placeholder="Điểm" value={newSV.grade} onChange={(e) => setNewSV({...newSV, grade: e.target.value})} required />
-          </Form.Group>
-          <Form.Group>
-            <Form.Label>Thời gian:</Form.Label>
-            <Form.Control type="text" name="time" placeholder="Thời gian" value={newSV.time} onChange={(e) => setNewSV({...newSV, time: e.target.value})} required />
-          </Form.Group>
-          <Form.Group>
-            <Form.Label>Ngày:</Form.Label>
-            <Form.Control type="text" name="day" placeholder="Ngày" value={newSV.day} onChange={(e) => setNewSV({...newSV, day: e.target.value})} required />
-          </Form.Group>
-          <Button type="submit" variant="primary">Thêm</Button>
-        </Form>
-      </div>
-    </Container>
-  </>
-    );
-
+  return (
+    <Router>
+      <Container maxWidth="lg" style={{ marginTop: 20 }}>
+        <Typography variant="h3" align="center" gutterBottom>Quản lý sinh viên</Typography>
+        <Grid container spacing={3}>
+          <Grid item xs={3}>
+            <Paper elevation={3} style={{ padding: 20, minHeight: '400px' }}>
+              <Typography variant="h5" align="center">Danh sách môn học</Typography>
+              <Select fullWidth label="Chọn môn học">
+                <MenuItem value="">
+                  <em>None</em>
+                </MenuItem>
+                {subjectsData.map(subject => (
+                  <MenuItem key={subject.id_subject} component={Link} to={`/${subject.id_subject}`} value={subject.id_subject}>
+                    {subject.name_subject}
+                  </MenuItem>
+                ))}
+              </Select>
+            </Paper>
+          </Grid>
+          <Grid item xs={9}>
+            <Paper elevation={3} style={{ padding: 20, minHeight: '400px' }}>
+              <Routes>
+                <Route path="/" element={<Typography variant="h5" align="center">Vui lòng chọn một môn học để xem danh sách sinh viên.</Typography>} />
+                <Route path="/:subjectId" element={<SubjectDetail />} />
+              </Routes>
+            </Paper>
+          </Grid>
+          <Grid item xs={12} style={{ marginTop: '20px', textAlign: 'center' }}>
+            <Button variant="contained" color="primary" onClick={handleUpload}>
+              Thêm dữ liệu
+            </Button>
+          </Grid>
+        </Grid>
+      </Container>
+    </Router>
+  );
 }
-export default Home
+
+export default App;
